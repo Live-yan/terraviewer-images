@@ -56,7 +56,6 @@ def save_to_json(image_files, output_file="files_list.json"):
     data = {
         "image_files": image_files,
         "total_count": len(image_files),
-        "generated_at": str(Path(__file__).parent.absolute())
     }
     
     with open(output_file, 'w', encoding='utf-8') as f:
