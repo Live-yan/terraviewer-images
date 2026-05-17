@@ -1,6 +1,6 @@
 # IDE files
 .idea/
-
+.claude/
 # OS generated files
 .DS_Store
 .DS_Store?
