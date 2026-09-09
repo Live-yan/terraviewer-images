@@ -1,0 +1,39 @@
+name: Import player preview assets
+on:
+  push:
+    branches: [feat/player-preview-assets-v1]
+    paths: [.github/workflows/import-player-preview.yml]
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and publish the static-only asset archive
+        shell: python
+        run: |
+          import urllib.request,hashlib,zipfile,io,json,pathlib
+          url='https://sdmntprwestus.oaiusercontent.com/files/00000000-9bcc-8230-a7ee-124a29df3865/raw?se=2026-09-09T21%3A38%3A47Z&sp=r&sv=2026-02-06&sr=b&scid=36b1f6bf-06f6-5d2a-95f0-2316e39e7097&skoid=b9a47e8b-72a2-4ed3-8028-a2a98c1a6142&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-09T20%3A12%3A08Z&ske=2026-09-10T20%3A12%3A08Z&sks=b&skv=2026-02-06&sig=EzRzqiumx9S8D1xwZZM6ugGhQo/2ckiJgwCIeGTeIyo%3D'
+          with urllib.request.urlopen(url,timeout=40) as response:
+            data=response.read(2000000)
+          assert hashlib.sha256(data).hexdigest()=='20b609dd9014b87b83d292f0f352d929aaa67090e70cc52f2703295f9b4b6d67','archive hash mismatch'
+          archive=zipfile.ZipFile(io.BytesIO(data))
+          assert set(archive.namelist())=={'manifest.json','walk.bin','choices.png','appearance.png'}
+          manifest=json.loads(archive.read('manifest.json'))
+          out=pathlib.Path('player/1.4.5.8-preview-v1');out.mkdir(parents=True,exist_ok=True)
+          for name in ['walk.bin','choices.png','appearance.png']:
+            raw=archive.read(name); expected=manifest['assets'][name]
+            assert len(raw)==expected['bytes'] and hashlib.sha256(raw).hexdigest()==expected['sha256'],name
+            (out/name).write_bytes(raw)
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          (out/'README.md').write_text('# Player preview resources\n\nStatic-only, content-verified mirror of viewer-app player assets. No user saves, code, fonts or account data.\n\nUse immutable commit URLs and verify the manifest lengths and SHA-256 hashes before consuming binary data. Keep local fallback assets for offline use. Do not overwrite these versioned resources; publish a new version when bytes change.\n\nwalk.bin contains compressed equipment walking textures; choices.png and appearance.png contain fixed preview atlases. The player renderer/index remain bundled with the app.\n')
+      - name: Commit assets and remove the one-time importer
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add player/1.4.5.8-preview-v1
+          git rm .github/workflows/import-player-preview.yml
+          git commit -m 'feat: publish versioned player preview assets with SHA-256 manifest'
+          git push origin HEAD:feat/player-preview-assets-v1
