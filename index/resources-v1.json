@@ -4,9 +4,9 @@
   "legacySourceCommit": "d8b7a655e210fe377186a083635733ece85c3594",
   "legacyGameVersion": null,
   "items": {
-    "path": "items/Item_{id}.png",
-    "count": 0,
-    "highestId": 0
+    "path": "items/item_{id}.png",
+    "count": 6086,
+    "highestId": 32135
   },
   "data": {
     "chestCatalog": "index/chest_items.json",
