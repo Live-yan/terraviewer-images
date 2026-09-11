@@ -1,0 +1,62 @@
+name: Correct audited trapped texture
+on:
+  push:
+    branches: [fix/item-coverage-8255d346]
+    paths: [.github/workflows/correct-trapped-texture.yml]
+permissions:
+  contents: write
+jobs:
+  correct:
+    if: github.repository == 'Live-yan/terraviewer-images' && github.ref == 'refs/heads/fix/item-coverage-8255d346'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/item-coverage-8255d346
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install Pillow==11.3.0
+      - name: Apply source-verified correction, regenerate and validate all aliases
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          root=Path('.')
+          assert hashlib.sha256((root/'items/item_5708.png').read_bytes()).hexdigest()=='9f9fc26f2befa66cbbbc0915a80a9b17935afeafd89a25bd0d49bb17dc63aee6'
+          assert hashlib.sha256((root/'items/item_5697.png').read_bytes()).hexdigest()=='7803e2485b74f62a0a43c7617d96e20105688bd34005b212facf97305829ce3a'
+          p=root/'data/item-coverage-8255d346.json';spec=json.loads(p.read_text());assert spec['textureCopyLoad']['5708']==5697
+          spec['correctedExistingAliases']=[5708];p.write_text(json.dumps(spec,separators=(',',':'))+'\n')
+          p=root/'scripts/item_coverage.py';s=p.read_text()
+          def replace(old,new):
+              global s
+              assert s.count(old)==1,old
+              s=s.replace(old,new)
+          replace("for n in spec['missingAliasBefore']:","for n in spec['missingAliasBefore'] + spec.get('correctedExistingAliases', []):")
+          replace("if sorted(output) != spec['missingBefore']:","if sorted(output) != sorted(spec['missingBefore'] + spec.get('correctedExistingAliases', [])):")
+          replace("manifest = {'schema':1", "for n in spec['textureCopyLoad']:\n        canonical = resolve_texture(int(n), spec['textureCopyLoad'])\n        if (root / f'items/item_{n}.png').read_bytes() != (root / f'items/item_{canonical}.png').read_bytes():\n            raise ValueError(f'Native texture alias mismatch: {n} -> {canonical}')\n    manifest = {'schema':1")
+          replace("'textureCopies':len(spec['missingAliasBefore']),", "'textureCopies':len(spec['missingAliasBefore'])+len(spec.get('correctedExistingAliases', [])),\n        'addedMissingImages':len(spec['missingBefore']),'correctedExistingIds':spec.get('correctedExistingAliases', []),")
+          replace("'nativeTextureCopies':len(spec['missingAliasBefore']),", "'nativeTextureCopies':len(spec['missingAliasBefore'])+len(spec.get('correctedExistingAliases', [])),\n        'addedMissingImages':len(spec['missingBefore']),'correctedExistingIds':spec.get('correctedExistingAliases', []),'allNativeAliasesVerified':len(spec['textureCopyLoad']),")
+          replace("Existing icons retained, not claimed to be re-exported from the latest game. 49 supplemental images are exact crops of a pinned UI atlas; 62 aliases use the native texture mapping.", "Existing icons retained except an incorrect 5708 alias, not claimed to be re-exported from the latest game. 49 supplemental images are exact crops of a pinned UI atlas; 63 repaired aliases use the native texture mapping. All 67 native aliases verified.")
+          s=s.replace('111 audited missing files','111 missing files plus the incorrect 5708 alias')
+          p.write_text(s)
+          p=root/'scripts/test_item_coverage.py';s=p.read_text();assert 'len(output),111' in s;s=s.replace('len(output),111','len(output),112');s=s.replace("for n in spec['missingAliasBefore']:","for n in spec['missingAliasBefore'] + spec.get('correctedExistingAliases', []):");p.write_text(s)
+          p=root/'ITEM_COVERAGE.md';s=p.read_text();s+='\n## Additional existing-image mismatch\n\nComparing all 67 native TextureCopyLoad mappings found one existing wrong image: ID 5708 was 16×30, while its required source ID 5697 is 32×30. It is now replaced by exact canonical PNG bytes. The initial missing count remains 111; changed images total 112 (62 added aliases + 1 corrected alias + 49 atlas thumbnails). All 67 aliases are now checked byte-for-byte, not only formerly missing aliases. Updated PNG coverage bytes and manifest hash are in the regenerated coverage report; earlier numeric totals in the initial audit describe the pre-correction repair.\n';p.write_text(s)
+          PY
+          python scripts/item_coverage.py --write
+          python scripts/item_coverage.py --check
+          python -m unittest discover -s scripts -p 'test_item_coverage.py' -v
+          rm .github/workflows/correct-trapped-texture.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add items/item_5708.png data/item-coverage-8255d346.json scripts/item_coverage.py scripts/test_item_coverage.py index/items-1.4.5.8.json ITEM_COVERAGE.md .github/workflows/correct-trapped-texture.yml
+          git commit -m 'fix: correct existing item 5708 texture and verify every native alias'
+          git push origin HEAD:refs/heads/fix/item-coverage-8255d346
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-item-coverage
+          path: |
+            reports/item-coverage.json
+            index/items-1.4.5.8.json
