@@ -1,0 +1,36 @@
+name: Item texture coverage
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install Pillow==11.3.0
+      - run: python scripts/item_coverage.py --check
+      - run: python -m unittest discover -s scripts -p 'test_item_coverage.py' -v
+      - name: Ensure all generated files are reproducible
+        run: |
+          python scripts/item_coverage.py --write
+          git diff --exit-code -- items index/items-1.4.5.8.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: item-coverage-${{ matrix.os }}
+          path: |
+            reports/item-coverage.json
+            index/items-1.4.5.8.json
