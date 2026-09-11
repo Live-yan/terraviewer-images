@@ -1,0 +1,48 @@
+name: Item texture coverage
+on:
+  push:
+    branches: [fix/item-coverage-8255d346]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect every item path and PNG container
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, struct, hashlib, zlib
+          root=Path('.'); ids={}; invalid=[]
+          for p in sorted((root/'items').glob('*.png')):
+            match=re.fullmatch(r'item_(-?\d+)\.png',p.name)
+            if not match: continue
+            data=p.read_bytes(); item=int(match[1]); ids[item]=p.name
+            try:
+              assert data[:8]==b'\x89PNG\r\n\x1a\n'
+              offset=8; chunks=[]
+              while offset<len(data):
+                size=struct.unpack('>I',data[offset:offset+4])[0]; name=data[offset+4:offset+8]; payload=data[offset+8:offset+8+size]
+                crc=struct.unpack('>I',data[offset+8+size:offset+12+size])[0]
+                assert zlib.crc32(name+payload)&0xffffffff==crc
+                chunks.append(name);offset+=size+12
+              assert chunks[0]==b'IHDR' and chunks[-1]==b'IEND' and b'IDAT' in chunks
+              width,height=struct.unpack('>II',data[16:24]); assert width>0 and height>0
+            except Exception as e: invalid.append({'id':item,'path':str(p),'error':type(e).__name__})
+          deprecated={2783,2785,2782,2773,2775,2772,2778,2780,2777,3463,3465,3462,2881,3847,3848,3849,3850,3851,3861,3862,4010,4058,4722,3978,6143,6171,6160,6170}
+          expected=set(range(1,6196));missing=sorted(expected-set(ids));active=sorted(expected-deprecated-set(ids))
+          report={'sourceRepository':'Live-yan/TerrariaDecompiledSource','sourceCommit':'8255d34616c780af12079425ac92a0a7aed87d71','itemIdBlob':'391d0ba08cb7a47bdd4456e48deca6c847ff0f69','itemIdCount':6196,'baseline':'d8b7a655e210fe377186a083635733ece85c3594','pngCount':len(ids),'minId':min(ids),'maxId':max(ids),'missing':missing,'missingActive':active,'missingDeprecated':sorted(set(missing)&deprecated),'extraIds':sorted(set(ids)-expected),'invalid':invalid}
+          Path('reports').mkdir(exist_ok=True);Path('reports/item-coverage.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          if active or invalid: raise SystemExit('Missing active item images or invalid PNG containers')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: item-coverage
+          path: reports/item-coverage.json
