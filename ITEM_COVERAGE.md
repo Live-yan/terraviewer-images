@@ -32,3 +32,7 @@ The generator is offline and only writes the 111 audited repairs plus the manife
 World chest contents and player inventory/equipment share the exact `items/item_{id}.png` identity; no stored ID or binary codec changes are needed. Applications must update their pinned **item** asset revision, not merely merge this into main while keeping an old immutable URL. Every CDN mirror must retain that item revision, and the cache key must include it. Other asset families (for example PR #3 player appearance thumbnails) may keep their independent revision.
 
 Application integration is tracked in viewer-app PR #59. The CDN repair itself works independently of PR #3 and does not remove any earlier public path. Modded/out-of-range IDs and offline first-time access to uncached images still require the application's explicit fallback; this coverage guarantee is for the pinned vanilla positive ID range.
+
+## Additional existing-image mismatch
+
+Comparing all 67 native TextureCopyLoad mappings found one existing wrong image: ID 5708 was 16×30, while its required source ID 5697 is 32×30. It is now replaced by exact canonical PNG bytes. The initial missing count remains 111; changed images total 112 (62 added aliases + 1 corrected alias + 49 atlas thumbnails). All 67 aliases are now checked byte-for-byte, not only formerly missing aliases. Updated PNG coverage bytes and manifest hash are in the regenerated coverage report; earlier numeric totals in the initial audit describe the pre-correction repair.

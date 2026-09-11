@@ -1,6 +1,6 @@
 """Pinned Terraria item icon coverage and deterministic repair; no network required.
 
-python scripts/item_coverage.py --write   # generate only the 111 audited missing files
+python scripts/item_coverage.py --write   # generate only the 111 missing files plus the incorrect 5708 alias
 python scripts/item_coverage.py --check   # reproduce repairs, decode every PNG and verify manifest
 
 Images are UI thumbnails. C# gives IDs and texture aliases, not new artwork.
@@ -56,14 +56,14 @@ def repairs(root=ROOT):
         details[n] = {'kind':'atlas-thumbnail','sourceItemId':n,'rgbaSha256':digest(data)}
     if offset != len(raw) or sorted(output) != spec['newThumbnails']:
         raise ValueError('Incomplete atlas selection')
-    for n in spec['missingAliasBefore']:
+    for n in spec['missingAliasBefore'] + spec.get('correctedExistingAliases', []):
         canonical = resolve_texture(n,spec['textureCopyLoad'])
         path = root / f'items/item_{canonical}.png'
         if not path.is_file():
             raise ValueError(f'Missing original texture for alias {n}: {canonical}')
         output[n] = path.read_bytes()
         details[n] = {'kind':'native-texture-copy','sourceItemId':canonical}
-    if sorted(output) != spec['missingBefore']:
+    if sorted(output) != sorted(spec['missingBefore'] + spec.get('correctedExistingAliases', [])):
         raise ValueError('Repair set differs from initial audit')
     return spec, seed, output, details
 
@@ -97,13 +97,18 @@ def audit(root=ROOT, write=False):
     active_empty = sorted(set(empty) - set(spec['deprecated']) - {3705,3706,3853,4143,5013})
     if active_empty:
         raise ValueError(f'Active transparent item images: {active_empty}')
+    for n in spec['textureCopyLoad']:
+        canonical = resolve_texture(int(n), spec['textureCopyLoad'])
+        if (root / f'items/item_{n}.png').read_bytes() != (root / f'items/item_{canonical}.png').read_bytes():
+            raise ValueError(f'Native texture alias mismatch: {n} -> {canonical}')
     manifest = {'schema':1,'targetGameVersion':'1.4.5.8','sourceRepository':spec['sourceRepository'],
         'sourceCommit':spec['sourceCommit'],'itemIdBlob':spec['itemIdBlob'],'itemIdCount':spec['itemIdCount'],
         'coveredRange':spec['range'],'coveredCount':len(entries),'missingIds':[],
-        'repairedCount':len(generated),'textureCopies':len(spec['missingAliasBefore']),
+        'repairedCount':len(generated),'textureCopies':len(spec['missingAliasBefore'])+len(spec.get('correctedExistingAliases', [])),
+        'addedMissingImages':len(spec['missingBefore']),'correctedExistingIds':spec.get('correctedExistingAliases', []),
         'newThumbnails':len(spec['newThumbnails']),'deprecatedIds':spec['deprecated'],
         'transparentExistingIds':empty,'atlasSource':seed['source'],
-        'artworkScope':'Existing icons retained, not claimed to be re-exported from the latest game. 49 supplemental images are exact crops of a pinned UI atlas; 62 aliases use the native texture mapping.',
+        'artworkScope':'Existing icons retained except an incorrect 5708 alias, not claimed to be re-exported from the latest game. 49 supplemental images are exact crops of a pinned UI atlas; 63 repaired aliases use the native texture mapping. All 67 native aliases verified.',
         'files':entries}
     text = json.dumps(manifest,ensure_ascii=False,indent=2)+'\n'
     path = root/MANIFEST
@@ -113,7 +118,8 @@ def audit(root=ROOT, write=False):
         raise ValueError('Coverage manifest differs; regenerate intentionally')
     return {'passed':True,'sourceCommit':spec['sourceCommit'],'itemIdCount':spec['itemIdCount'],
         'coveredCount':len(entries),'range':spec['range'],'missingIds':[], 'decodedPngs':len(entries),
-        'repairedCount':len(generated),'nativeTextureCopies':len(spec['missingAliasBefore']),
+        'repairedCount':len(generated),'nativeTextureCopies':len(spec['missingAliasBefore'])+len(spec.get('correctedExistingAliases', [])),
+        'addedMissingImages':len(spec['missingBefore']),'correctedExistingIds':spec.get('correctedExistingAliases', []),'allNativeAliasesVerified':len(spec['textureCopyLoad']),
         'atlasThumbnails':len(spec['newThumbnails']),'transparentExistingIds':empty,
         'allImageBytes':sum(e['bytes'] for e in entries),'repairBytes':sum(len(v) for v in generated.values()),
         'manifestSha256':digest(text.encode())}

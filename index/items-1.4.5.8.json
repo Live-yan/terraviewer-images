@@ -11,8 +11,12 @@
   ],
   "coveredCount": 6195,
   "missingIds": [],
-  "repairedCount": 111,
-  "textureCopies": 62,
+  "repairedCount": 112,
+  "textureCopies": 63,
+  "addedMissingImages": 111,
+  "correctedExistingIds": [
+    5708
+  ],
   "newThumbnails": 49,
   "deprecatedIds": [
     2772,
@@ -53,7 +57,7 @@
     "sha256": "1f04d4100f1c2d251820633687ca4d7ecc51a41f9c38a5706a7f41209ea67300",
     "note": "Exact nontransparent crops of existing 40x40 UI thumbnails; not raw full-resolution game textures."
   },
-  "artworkScope": "Existing icons retained, not claimed to be re-exported from the latest game. 49 supplemental images are exact crops of a pinned UI atlas; 62 aliases use the native texture mapping.",
+  "artworkScope": "Existing icons retained except an incorrect 5708 alias, not claimed to be re-exported from the latest game. 49 supplemental images are exact crops of a pinned UI atlas; 63 repaired aliases use the native texture mapping. All 67 native aliases verified.",
   "files": [
     {
       "id": 1,
@@ -45802,10 +45806,12 @@
     {
       "id": 5708,
       "path": "items/item_5708.png",
-      "bytes": 321,
-      "width": 16,
+      "bytes": 431,
+      "width": 32,
       "height": 30,
-      "sha256": "9f9fc26f2befa66cbbbc0915a80a9b17935afeafd89a25bd0d49bb17dc63aee6"
+      "sha256": "7803e2485b74f62a0a43c7617d96e20105688bd34005b212facf97305829ce3a",
+      "kind": "native-texture-copy",
+      "sourceItemId": 5697
     },
     {
       "id": 5709,

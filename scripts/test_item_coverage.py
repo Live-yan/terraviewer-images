@@ -15,13 +15,13 @@ class CoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):resolve_texture(1,{'1':2,'2':1})
     def test_repair_set_and_full_crop_checksums(self):
         spec,seed,output,details=repairs()
-        self.assertEqual(len(output),111)
+        self.assertEqual(len(output),112)
         self.assertEqual(len(spec['missingAliasBefore']),62)
         self.assertEqual(spec['newThumbnails'],list(range(6147,6196)))
         for n in spec['newThumbnails']:
             with Image.open(io.BytesIO(output[n])) as im:
                 self.assertTrue(im.getbbox()); self.assertEqual(im.mode,'RGBA')
-        for n in spec['missingAliasBefore']:
+        for n in spec['missingAliasBefore'] + spec.get('correctedExistingAliases', []):
             canonical=details[n]['sourceItemId']
             self.assertEqual(output[n],(ROOT/f'items/item_{canonical}.png').read_bytes())
     def test_source_contract(self):
