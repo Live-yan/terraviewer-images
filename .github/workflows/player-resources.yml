@@ -1,0 +1,28 @@
+name: Versioned public resources
+on:
+  push:
+    branches: [feat/versioned-shared-assets, main]
+    paths: ['sources/player-choices-v1/**', 'scripts/build-player-choices.py', 'player/1.4.5.8/choices-v1/**', 'index/resources-v1.json', '.github/workflows/player-resources.yml']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  resources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify every committed PNG and resource manifest
+        run: python scripts/build-player-choices.py --check
+      - name: Reproduce outputs without network access
+        run: |
+          python scripts/build-player-choices.py
+          git diff --exit-code -- player/1.4.5.8/choices-v1 index/resources-v1.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: public-resource-manifests
+          path: |
+            index/resources-v1.json
+            player/1.4.5.8/choices-v1/manifest.json

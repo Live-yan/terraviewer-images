@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "repository": "Live-yan/terraviewer-images",
+  "legacySourceCommit": "d8b7a655e210fe377186a083635733ece85c3594",
+  "legacyGameVersion": null,
+  "items": {
+    "path": "items/item_{id}.png",
+    "count": 6086,
+    "highestId": 32135
+  },
+  "data": {
+    "chestCatalog": "index/chest_items.json",
+    "bestiary": "index/bestiary.json",
+    "gameData": "pixel/game_data.json",
+    "colorIndex": "pixel/terraria_color_index.txci.gz"
+  },
+  "playerChoices": {
+    "path": "player/1.4.5.8/choices-v1",
+    "gameVersion": "1.4.5.8",
+    "count": 240
+  },
+  "policy": "Clients pin an immutable Git commit; fallback keeps the same revision. User files, font files and executable runtime are not part of this manifest."
+}
